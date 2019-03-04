@@ -6,12 +6,13 @@ int x_Shift=100;
 int y_Shift=50;
 int savedImage=1;
 int scaleSize=10;
-int totalImage=2;
+int totalImage=11;
 int valueMax=10000000;
 int valueMin=100000;
 int interval=M;
 int imageIndex=1;
 int numOfPoints;
+
 float[] xData;
 float[] yData;
 final int max=10000000;
@@ -26,6 +27,10 @@ float[][][] savedY;
 
 String xTag="Amount";
 String yTag="Comparison";
+//String xTag="Amount";
+//String yTag="Time";
+//String yUnit="*2ms";
+String yUnit="M";
 
 QuickSort quickSort;
 HeapSort heapSort;
@@ -39,6 +44,7 @@ void setup()
   savedX=new float[totalImage+2][2][numOfPoints+1];
   savedY=new float[totalImage+2][2][numOfPoints+1];
   reDraw();
+  drawAxis();
 }
 
 void reDraw()
@@ -53,6 +59,7 @@ for(int type=0;type<2;type++)
  amount=valueMin; 
  background(0);
  redraw();
+ drawAxis();
 }
 
 void drawAxis()
@@ -104,6 +111,7 @@ void drawAxis()
     line(i+x_Shift,1000-y_Shift,i+x_Shift,yAxis_Terminal_Y);//Draw mash.
  
     stroke(255,255,0);
+    
     fill(255);
     text(i+"*(10^4)",i+x_Shift-35,1000-y_Shift+20);
     strokeWeight(2);
@@ -127,7 +135,7 @@ void drawAxis()
     
     stroke(255,255,0);
     fill(255);
-    text(i+"M",x_Shift-50,1000-y_Shift+5-i);
+    text(i+yUnit,x_Shift-70,1000-y_Shift+5-i);
     strokeWeight(2);
     line(x_Shift,1000-y_Shift-i,x_Shift-scaleSize,1000-y_Shift-i);//Draw scale.
   }
@@ -138,12 +146,12 @@ void drawAxis()
 
 void draw()
 {
-  drawAxis();
+
 
   if(savedImage==totalImage&&amount<valueMax)
   {
    drawAverage();
-   save("Average.gif");
+   save(yTag+xTag+"Average.gif");
    return;    
   }
   if(amount<valueMax)
@@ -153,18 +161,29 @@ void draw()
      quickSort=new QuickSort(randomArray);
      heapSort=new HeapSort(randomArray);
     
-     int numberOfComparison_Qck;
-     int numberOfComparison_Heap;
+     int numberOfComparison_Qck,numberOfComparison_Heap;
+     int runTime_Qck, runTime_Heap;
+     
+     //int oldTime=(int)System.nanoTime();
      int[] sortedArray_Qck=quickSort.quicksort();
+     //runTime_Qck=(int)System.nanoTime()-oldTime;
+     
+     //oldTime=(int)System.nanoTime();
      int[] sortedArray_Heap=heapSort.heapSort();
+     //runTime_Heap=(int)System.nanoTime()-oldTime;
+     
      numberOfComparison_Qck=quickSort.numberOfComparison_Qck;
      numberOfComparison_Heap=heapSort.numberOfComparison_Heap;
+     
+     
      //println("HeapSort: "+numberOfComparison_Heap);
      //println("QuickSort: "+numberOfComparison_Qck);
      int oldAmount=amount;
      drawChart(numberOfComparison_Qck,0);
+     //drawChart(runTime_Qck/M,0);
      amount=oldAmount;
      drawChart(numberOfComparison_Heap,1);
+     //drawChart(runTime_Heap/M,1);
   }
   if(amount>=valueMax&&savedImage<totalImage)
   {
@@ -192,23 +211,64 @@ void drawAverage()
   }
     for(int i=0;i<=numOfPoints;i++)
     {
-      average_Qck[i]=average_Qck[i]/(totalImage-1); 
+      average_Qck[i]=average_Qck[i]/(totalImage-1); //Minus means don't include the average graph itself.
       average_Heap[i]=average_Heap[i]/(totalImage-1); 
     }
-  for(int i=0;amount<valueMax;i++) //<>//
+  for(int i=0;amount<valueMax;i++)
   {
-    int oldAmount=amount;
     drawChart(average_Qck[i],0);
-    amount=oldAmount;
     drawChart(average_Heap[i],1);
     amount+=interval;
-    println("amount: " + amount);
   }
+  drawStandardDeviation(average_Qck,average_Heap);
 }
+
+void drawStandardDeviation(float[] average_Qck,float[] average_Heap)
+{
+  float[] standardDeviation_Qck=new float[numOfPoints+1];
+  float[] standardDeviation_Heap=new float[numOfPoints+1];
+  for(int i=1;i<totalImage;i++)
+  {
+      for(int j=0;j<numOfPoints;j++)
+      {
+        standardDeviation_Qck[j]+=(float)Math.pow(Math.abs(savedY[i][0][j]-average_Qck[j]),2);
+        standardDeviation_Heap[j]+=(float)Math.pow(Math.abs(savedY[i][1][j]-average_Heap[j]),2);     
+      }
+  }
+  for(int i=0;i<numOfPoints;i++)
+  {
+    standardDeviation_Qck[i]=(float)Math.pow(standardDeviation_Qck[i]/(totalImage-1),0.5);
+    standardDeviation_Heap[i]=(float)Math.pow(standardDeviation_Heap[i]/(totalImage-1),0.5);
+  }
+  println(standardDeviation_Qck[2]);
+  amount=valueMin; //<>//
+  for(int i=0;amount<valueMax;i++)
+  {
+    strokeWeight(2);
+
+    stroke(0,255,255,150);
+    float upper=standardDeviation_Qck[i]+average_Qck[i];
+    float lower=average_Qck[i]-standardDeviation_Qck[i];
+    float xCoordinate=(float)amount/M*100+x_Shift;
+    line(xCoordinate,upper,xCoordinate,lower);
+    line(xCoordinate-5,upper,xCoordinate+5,upper);
+    line(xCoordinate-5,lower,xCoordinate+5,lower);
+    
+    stroke(0,255,255,150);
+    upper=standardDeviation_Heap[i]+average_Heap[i];
+    lower=average_Heap[i]-standardDeviation_Heap[i];
+    line(xCoordinate,upper,xCoordinate,lower);
+    line(xCoordinate-5,upper,xCoordinate+5,upper);
+    line(xCoordinate-5,lower,xCoordinate+5,lower);
+    amount+=interval;  
+}
+}
+
+
 
 void saveGraph()
 {
- save(savedImage+".gif");
+ save(yTag+xTag+savedImage+".gif");
 }
 
 
@@ -225,7 +285,7 @@ void drawChart(float value,int type/*0=qck,1=heap.*/)
   {
   new_X[type]=(float)amount/M*100;
   new_Y[type]=(float)(1000-(value/M));
-  
+  //new_Y[type]=1000-value/2;
     //allign to specific x,y axis.
   new_X[type]+=x_Shift;
   new_Y[type]-=y_Shift;
@@ -234,10 +294,7 @@ void drawChart(float value,int type/*0=qck,1=heap.*/)
   if(savedImage==totalImage)
   {
     new_Y[type]=value; 
-
   }
-    println("new_Y: "+new_Y[type]);
-  
 
   savedX[imageIndex][type][(amount-valueMin)/interval]=new_X[type];
   savedY[imageIndex][type][(amount-valueMin)/interval]=new_Y[type];
